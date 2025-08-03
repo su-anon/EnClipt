@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+.secret
+*.pyc
+*.log
+*.sqlite
+*.sqlite3
