@@ -1,4 +1,5 @@
 import sys
+import threading
 from PyQt6 import QtWidgets, QtCore, QtGui
 from view import login_register
 from view import main_window
@@ -32,6 +33,7 @@ class LoginRegisterWindow(QtWidgets.QMainWindow):
             self.main_window = MainWindow()
             self.main_window.show()
             self.close()
+            del(self)
 
 class MainWindow(QtWidgets.QMainWindow):
 
@@ -50,6 +52,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.clear_timer = QtCore.QTimer()
         self.clear_timer.setSingleShot(True)
         self.clear_timer.timeout.connect(self.clipboard.clear)
+
+        self.locker_timer = QtCore.QTimer()
+        self.locker_timer.setSingleShot(True)
+        self.locker_timer.timeout.connect(self.lock_function)
 
 
         self.labels = [
@@ -130,6 +136,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if self.is_valid_time(timeout):
             self.cliptimeout = int(timeout) * 1000
             self.show_toast(f"Set to clear clipboard after {timeout} second(s)", self.ui.clipboard_timer_widget)
+            self.clear_timer.start(self.cliptimeout)
         else:
             self.show_toast("Enter valid time", self.ui.clipboard_timer_widget)
     
@@ -137,8 +144,16 @@ class MainWindow(QtWidgets.QMainWindow):
         timeout = self.ui.lock_timer_input.text()
         if self.is_valid_time(timeout):
             self.show_toast(f"Set to lock after {timeout} second", self.ui.lock_timer_widget)
+            if self.locker_timer.isActive():
+                self.locker_timer.stop()
+            self.locker_timer.start(int(timeout)*1000)
         else:
             self.show_toast("Enter valid time", self.ui.lock_timer_widget)
+
+    def lock_function(self):
+        self.login_window = LoginRegisterWindow()
+        self.login_window.show()
+        self.close()
 
     def is_valid_time(self, text):
         try:

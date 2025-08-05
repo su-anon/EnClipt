@@ -1,4 +1,5 @@
 import model
+import threading
 
 class Controller:
 
@@ -8,6 +9,7 @@ class Controller:
         self.locked = True
         self.username = "USER"
         self.hashpass = "PASS"
+        self.lock_timer = None
 
     def register(self, username, hashpass):
         self.username = username
@@ -23,3 +25,12 @@ class Controller:
 
     def clip_changed(self, clip):
         self.model.new_clip(clip)
+
+    def lock_after_seconds(self, timeout):
+        if self.lock_timer:
+            self.lock_timer.close()
+        self.lock_timer = threading.Timer(timeout, lock_vault)
+        self.lock_timer.start()
+
+    def lock_vault(self):
+        self.locked = True
