@@ -38,6 +38,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
         self.should_insert_clip = True
+        self.cliptimeout = -1
         self.ui = main_window.Ui_MainWindow()
         self.ui.setupUi(self)
         self.setWindowTitle("EnClipt")
@@ -45,6 +46,11 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.clipboard = QtGui.QGuiApplication.clipboard()
         self.clipboard.dataChanged.connect(self.clip_changed)
+
+        self.clear_timer = QtCore.QTimer()
+        self.clear_timer.setSingleShot(True)
+        self.clear_timer.timeout.connect(self.clipboard.clear)
+
 
         self.labels = [
                 self.ui.paste0,
@@ -68,6 +74,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.stack_btn_1.clicked.connect(lambda _: self.ui.stackedWidget.setCurrentIndex(0))
         self.ui.stack_btn_2.clicked.connect(lambda _: self.ui.stackedWidget.setCurrentIndex(1))
         self.ui.stack_btn_3.clicked.connect(lambda _: self.ui.stackedWidget.setCurrentIndex(2))
+        self.ui.clip_timer_btn.clicked.connect(self.clip_timer)
+        self.ui.lock_timer_btn.clicked.connect(self.lock_timer)
 
     def preview(self, index):
         if index<len(self.cliplist):
@@ -79,14 +87,66 @@ class MainWindow(QtWidgets.QMainWindow):
         if self.should_insert_clip == False:
             return
         clip = self.clipboard.text()
+        if not clip:
+            return
         controller_object.clip_changed(clip)
         self.cliplist = controller_object.get_clipboard_list()
         self.update_labels()
+
+        if self.cliptimeout >= 0:
+            if self.clear_timer.isActive():
+                self.clear_timer.stop()
+            self.clear_timer.start(self.cliptimeout)
 
     def update_labels(self):
         for i, label in enumerate(self.labels):
             if i<len(self.cliplist):
                 label.setText(self.cliplist[i])
+
+    def show_toast(self, message, widget):
+        toast = QtWidgets.QLabel(message, self)
+        toast.setStyleSheet("""
+            background-color: #333;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+        """)
+        toast.setWordWrap(True)
+        toast.setFixedWidth(200)
+        toast.adjustSize()
+        toast.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        
+        custom_center = widget.mapTo(self, widget.rect().center())
+        toast_center = toast.rect().center()
+        toast.move(custom_center - toast_center)
+        
+        toast.show()
+        toast.raise_()
+        QtCore.QTimer.singleShot(1000, toast.hide)
+
+    def clip_timer(self):
+        timeout = self.ui.clip_timer_input.text()
+        if self.is_valid_time(timeout):
+            self.cliptimeout = int(timeout) * 1000
+            self.show_toast(f"Set to clear clipboard after {timeout} second(s)", self.ui.clipboard_timer_widget)
+        else:
+            self.show_toast("Enter valid time", self.ui.clipboard_timer_widget)
+    
+    def lock_timer(self):
+        timeout = self.ui.lock_timer_input.text()
+        if self.is_valid_time(timeout):
+            self.show_toast(f"Set to lock after {timeout} second", self.ui.lock_timer_widget)
+        else:
+            self.show_toast("Enter valid time", self.ui.lock_timer_widget)
+
+    def is_valid_time(self, text):
+        try:
+            int(text)
+            return True
+        except:
+            return False
+
 
 class Preview(QtWidgets.QDialog):
 
