@@ -1,9 +1,12 @@
 import sqlite3
+import os
 
 class Model:
 
     def __init__(self, username):
-        self.db_path = f"model/{username}.db"
+        self.db_path = os.path.join(
+                os.path.dirname(os.path.abspath(__file__)), f"model/{username}.db"
+                )
         self.connection = sqlite3.connect(self.db_path)
         self.init_db()
 
