@@ -1,3 +1,3 @@
 import subprocess
 
-subprocess.run(["python", "client/view.py"])
+subprocess.run(["python", "view.py"])
