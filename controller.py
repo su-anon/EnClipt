@@ -1,26 +1,21 @@
 import model
-import threading
+import threading, os, hmac, hashlib
 
 class Controller:
 
-    def __init__(self, username):
-        self.username = username
-        self.model = model.Model(self.username)
-        self.locked = True
-        self.username = "USER"
-        self.hashpass = "PASS"
+    def __init__(self):
+        self.model = model.Model()
+        self.verified = False
         self.lock_timer = None
 
-    def register(self, username, hashpass):
-        self.username = username
-        self.hashpass = hashpass
+    def register(self, password):
+        self.model.register(password)
 
     def login(self, username, hashpass):
-        if username==self.username and hashpass==self.hashpass:
-            self.locked = False
+        self.verified = self.model.login(password)
 
     def get_clipboard_list(self):
-        clips = self.model.get_clip(5)
+        clips = self.model.get_clip(forward=True)
         return [clip[0] for clip in clips]
 
     def clip_changed(self, clip):
@@ -32,5 +27,13 @@ class Controller:
         self.lock_timer = threading.Timer(timeout, lock_vault)
         self.lock_timer.start()
 
+    def getkeyfile(self):
+        return self.model.generate_keyfile()
+
+    def authenticate_keyfile(self, key):
+        challange = os.urandom(16)
+        signature = hmac.new(key, challange, hashlib.sha256).digest()
+        return self.model.authenticate_keyfile(signature, challange)
+
     def lock_vault(self):
-        self.locked = True
+        self.verified = False

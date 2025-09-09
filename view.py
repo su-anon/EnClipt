@@ -1,39 +1,75 @@
-import sys
-import threading
+import sys, threading, os
 from PyQt6 import QtWidgets, QtCore, QtGui
-from view import login_register
-from view import main_window
-from view import preview
+from view import register, login, main_window, preview
 import controller
 
-controller_object = controller.Controller("USER")
+controller_object = controller.Controller()
 
-class LoginRegisterWindow(QtWidgets.QMainWindow):
+# class LoginRegisterWindow(QtWidgets.QMainWindow):
+# 
+#     def __init__(self):
+#         super().__init__()
+#         self.ui = login_register.Ui_MainWindow()
+#         self.ui.setupUi(self)
+#         self.setFixedSize(400, 170)
+#         self.setWindowTitle("Login or Register to EnClipt")
+#         self.ui.register_button.clicked.connect(self.register)
+#         self.ui.login_button.clicked.connect(self.check_login)
+#         self.main_window = None
+# 
+#     def register(self):
+#         username = self.ui.username_input.text()
+#         password = self.ui.password_input.text()
+#         controller_object.register(username, password)
+# 
+#     def check_login(self):
+#         username = self.ui.username_input.text()
+#         password = self.ui.password_input.text()
+#         controller_object.login(username, password)
+#         if not controller_object.locked and self.main_window is None:
+#             self.main_window = MainWindow()
+#             self.main_window.show()
+#             self.close()
+#             del(self)
 
+class Register(QtWidgets.QWidget):
     def __init__(self):
         super().__init__()
-        self.ui = login_register.Ui_MainWindow()
+        self.ui = register.Ui_Form()
         self.ui.setupUi(self)
-        self.setFixedSize(400, 170)
-        self.setWindowTitle("Login or Register to EnClipt")
-        self.ui.register_button.clicked.connect(self.register)
-        self.ui.login_button.clicked.connect(self.check_login)
-        self.main_window = None
+        self.setFixedSize(233, 363)
+        self.setWindowTitle("Register")
+        self.ui.keyfile.clicked.connect(self.keyfile_func)
+        self.ui.register_button.clicked.connect(self.register_func)
+        self.keyfile_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "model", "keyfile")
 
-    def register(self):
-        username = self.ui.username_input.text()
-        password = self.ui.password_input.text()
-        controller_object.register(username, password)
+    def register_func(self):
+        with open(self.keyfile_path, 'wb') as f:
+            f.write(controller_object.getkeyfile())
+        print('Regiseter')
+    def keyfile_func(self):
+        self.keyfile_path, _ = QtWidgets.QFileDialog.getSaveFileName(self, "Save Key File", "enclipt.key", "Key Files (*.key);;All Files (*)")
 
-    def check_login(self):
-        username = self.ui.username_input.text()
-        password = self.ui.password_input.text()
-        controller_object.login(username, password)
-        if not controller_object.locked and self.main_window is None:
-            self.main_window = MainWindow()
-            self.main_window.show()
-            self.close()
-            del(self)
+class Login(QtWidgets.QWidget):
+    def __init__(self):
+        super().__init__()
+        self.ui  = login.Ui_Form()
+        self.ui.setupUi(self)
+        self.setFixedSize(334, 143)
+        self.setWindowTitle("Login")
+        self.ui.login_button.clicked.connect(self.handle_login)
+        self.ui.keyfile.clicked.connect(self.keyfile_validation)
+        self.keyfile_valid = False
+
+    def handle_login(self):
+        pass
+
+    def keyfile_validation(self):
+        self.keyfile_path, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Save Key File", "", "Key Files (*.key);;All Files (*)")
+        with open(self.keyfile_path, 'rb') as f:
+            key = f.read()
+        self.keyfile_valid = controller_object.authenticate_keyfile(key)
+        print(self.keyfile_valid)
 
 class MainWindow(QtWidgets.QMainWindow):
 
@@ -44,7 +80,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui = main_window.Ui_MainWindow()
         self.ui.setupUi(self)
         self.setWindowTitle("EnClipt")
-        self.cliplist = controller_object.get_clipboard_list() # Get 5 most recent clips
+        self.cliplist = controller_object.get_clipboard_list(forward=True) # Get 5 most recent clips
 
         self.clipboard = QtGui.QGuiApplication.clipboard()
         self.clipboard.dataChanged.connect(self.clip_changed)
@@ -151,7 +187,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.show_toast("Enter valid time", self.ui.lock_timer_widget)
 
     def lock_function(self):
-        self.login_window = LoginRegisterWindow()
+        self.login_window = Login()
         self.login_window.show()
         self.close()
 
@@ -184,6 +220,13 @@ class Preview(QtWidgets.QDialog):
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
-    window = LoginRegisterWindow()
+
+    db_path = "model/database"
+
+    if not os.path.exists(db_path):
+        window = Register()
+    else:
+        window = Login()
+
     window.show()
     sys.exit(app.exec())

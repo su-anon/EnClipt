@@ -6,3 +6,7 @@ __pycache__/
 *.sqlite
 *.sqlite3
 *.db
+*.key
+database
+keyfile
+authenticator
