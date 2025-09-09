@@ -27,6 +27,21 @@ class Ui_MainWindow(object):
         self.verticalLayout.setObjectName("verticalLayout")
         spacerItem = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Expanding)
         self.verticalLayout.addItem(spacerItem)
+
+        self.stack_btn_prev = QtWidgets.QPushButton(parent=self.frame)
+        font = QtGui.QFont()
+        font.setPointSize(20)
+        self.stack_btn_prev.setFont(font)
+        self.stack_btn_prev.setObjectName("stack_btn_prev")
+        self.verticalLayout.addWidget(self.stack_btn_prev)
+
+        self.stack_btn_next = QtWidgets.QPushButton(parent=self.frame)
+        font = QtGui.QFont()
+        font.setPointSize(20)
+        self.stack_btn_next.setFont(font)
+        self.stack_btn_next.setObjectName("stack_btn_next")
+        self.verticalLayout.addWidget(self.stack_btn_next)
+
         self.stack_btn_1 = QtWidgets.QPushButton(parent=self.frame)
         font = QtGui.QFont()
         font.setPointSize(20)
@@ -299,6 +314,8 @@ class Ui_MainWindow(object):
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
+        self.stack_btn_prev.setText(_translate("MainWindow", ""))
+        self.stack_btn_next.setText(_translate("MainWindow", ""))
         self.stack_btn_1.setText(_translate("MainWindow", "󱉦"))
         self.stack_btn_2.setText(_translate("MainWindow", "󱛣"))
         self.stack_btn_3.setText(_translate("MainWindow", ""))
