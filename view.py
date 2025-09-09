@@ -1,6 +1,6 @@
 import sys, threading, os
 from PyQt6 import QtWidgets, QtCore, QtGui
-from view import register, login, main_window, preview
+from view import register, login, main_window, preview, fileoperation
 import controller
 
 controller_object = controller.Controller()
@@ -72,14 +72,14 @@ class Login(QtWidgets.QWidget):
         self.ui.setupUi(self)
         self.setFixedSize(334, 143)
         self.setWindowTitle("Login")
-        self.ui.login_button.clicked.connect(self.handle_login)
+        self.ui.login_button.clicked.connect(self.handle_login2)
         self.ui.keyfile.clicked.connect(self.get_keyfile_path)
         self.keyfile_path = None
         self.keyfile_valid = False
         self.totp_valid = False
         self.password_valid = False
 
-    def handle_login(self):
+    def handle_login2(self):
         self.totp_validation()
         self.password_validation()
         if not self.keyfile_path:
@@ -146,6 +146,61 @@ class Login(QtWidgets.QWidget):
         toast.raise_()
         QtCore.QTimer.singleShot(1000, toast.hide)
 
+class FileOperation(QtWidgets.QWidget):
+    def __init__(self, main_window):
+        super().__init__()
+        self.main_window = main_window
+        self.setFixedSize(620,143)
+        self.ui = fileoperation.Ui_Form()
+        self.ui.setupUi(self)
+        self.setWindowTitle("Backup/Restore Database")
+        self.ui.backup.clicked.connect(self.select_backup_path)
+        self.ui.restore.clicked.connect(self.select_restore_path)
+        self.ui.confirm.clicked.connect(self.confirm_operation)
+        self.operation = None
+        self.file_path = None
+
+    def select_backup_path(self):
+        self.file_path, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self, "Save Backup Database", "enclipt_backup.db", "Database Files (*.db);;All Files (*)"
+        )
+        if self.file_path:
+            self.ui.file_status.setText(f"Backup path: {self.file_path}")
+            self.operation = 'backup'
+        else:
+            self.ui.file_status.setText("No backup path selected")
+            self.operation = None
+
+    def select_restore_path(self):
+        self.file_path, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self, "Select Backup Database", "", "Database Files (*.db);;All Files (*)"
+        )
+        if self.file_path:
+            self.ui.file_status.setText(f"Restore path: {self.file_path}")
+            self.operation = 'restore'
+        else:
+            self.ui.file_status.setText("No restore path selected")
+            self.operation = None
+
+    def confirm_operation(self):
+        password = self.ui.file_password.text()
+        if not password:
+            self.ui.file_status.setText("No password provided")
+            return
+        if not self.file_path or not self.operation:
+            self.ui.file_status.setText("Select a file path first")
+            return
+        if self.operation == 'backup':
+            success, message = controller_object.backup_database(self.file_path, password)
+            self.ui.file_status.setText(message)
+        elif self.operation == 'restore':
+            success, message = controller_object.restore_database(self.file_path, password)
+            self.ui.file_status.setText(message)
+            if success:
+                self.main_window.cliplist = controller_object.get_clipboard_list(state=1)
+                self.main_window.update_labels()
+                self.close()
+
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
@@ -184,12 +239,16 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.stack_btn_1.clicked.connect(lambda _: self.ui.stackedWidget.setCurrentIndex(0))
         self.ui.stack_btn_2.clicked.connect(lambda _: self.ui.stackedWidget.setCurrentIndex(1))
         self.ui.stack_btn_3.clicked.connect(lambda _: self.ui.stackedWidget.setCurrentIndex(2))
-#        self.ui.stack_btn_4.clicked.connect()
+        self.ui.stack_btn_4.clicked.connect(self.open_file_operation)
         self.page_label = QtWidgets.QLabel(self.ui.centralwidget)
         self.page_label.setStyleSheet("font-size: 16px;")
         self.page_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         self.ui.verticalLayout.addWidget(self.page_label)
         self.update_labels()
+
+    def open_file_operation(self):
+        self.file_op_window = FileOperation(self)
+        self.file_op_window.show()
 
     def next_page(self):
         prev_offset = controller_object.model.offset
@@ -214,13 +273,15 @@ class MainWindow(QtWidgets.QMainWindow):
         clip = self.clipboard.text()
         if not clip:
             return
-        controller_object.clip_changed(clip)
-        self.cliplist = controller_object.get_clipboard_list(state=1)
-        self.update_labels()
-        if self.cliptimeout >= 0:
-            if self.clear_timer.isActive():
-                self.clear_timer.stop()
-            self.clear_timer.start(self.cliptimeout)
+        if controller_object.clip_changed(clip):
+            self.cliplist = controller_object.get_clipboard_list(state=1)
+            self.update_labels()
+            if self.cliptimeout >= 0:
+                if self.clear_timer.isActive():
+                    self.clear_timer.stop()
+                self.clear_timer.start(self.cliptimeout)
+        else:
+            self.show_toast("Duplicate clip not added", self.ui.centralwidget)
 
     def update_labels(self):
         for i, label in enumerate(self.labels):

@@ -1,4 +1,4 @@
-import sqlcipher3, os, hashlib, hmac, base64, pyotp
+import sqlcipher3, os, hashlib, hmac, base64, pyotp, shutil
 from io import BytesIO
 import qrcode
 
@@ -20,6 +20,7 @@ class Model:
                 clip text
             );
         """)
+        connection.execute("create index if not exists idx_clip on clips (clip);")
         connection.commit()
         connection.close()
         with open(self.authenticator_path, 'wb') as f:
@@ -39,14 +40,23 @@ class Model:
             self.connection = sqlcipher3.connect(self.db_path)
             self.connection.execute(f"pragma key = '{password}';")
             self.connection.execute("select * from sqlite_master")
+            self.db_password = password
             return True
         except:
             return False
 
+    def clip_exists(self, clip):
+        cursor = self.connection.cursor()
+        cursor.execute("select 1 from clips where clip = ?;", (clip,))
+        return cursor.fetchone() is not None
+
     def new_clip(self, clip):
+        if self.clip_exists(clip):
+            return False
         cursor = self.connection.cursor()
         cursor.execute("insert into clips (clip) values (?);", (clip,))
         self.connection.commit()
+        return True
 
     def get_clip(self, state=1):
         num = 5
@@ -88,6 +98,39 @@ class Model:
         with open(self.authenticator_path, 'rb') as f:
             self.totp = pyotp.TOTP(f.read().decode())
         return self.totp.now() == totp
+
+    def backup_database(self, backup_path, new_password):
+        try:
+            if not self.connection:
+                return False, "Database connection not initialized."
+            shutil.copyfile(self.db_path, backup_path)
+            backup_conn = sqlcipher3.connect(backup_path)
+            backup_conn.execute(f"pragma key = '{self.db_password}';")
+            backup_conn.execute("select * from sqlite_master")
+            backup_conn.execute(f"pragma rekey = '{new_password}';")
+            backup_conn.commit()
+            backup_conn.close()
+            return True, "Backup successful."
+        except Exception as e:
+            return False, f"Backup failed: {str(e)}"
+
+    def restore_database(self, backup_path, password):
+        try:
+            temp_conn = sqlcipher3.connect(backup_path)
+            temp_conn.execute(f"pragma key = '{password}';")
+            temp_conn.execute("select * from sqlite_master")
+            temp_conn.close()
+            if self.connection:
+                self.connection.close()
+            shutil.copyfile(backup_path, self.db_path)
+            self.connection = sqlcipher3.connect(self.db_path)
+            self.connection.execute(f"pragma key = '{password}';")
+            self.connection.execute("select * from sqlite_master")
+            self.db_password = password
+            self.offset = 0
+            return True, "Restore successful."
+        except Exception as e:
+            return False, f"Restore failed: {str(e)}"
 
     def close(self):
         if self.connection:
