@@ -2,9 +2,7 @@ import sys, threading, os
 from PyQt6 import QtWidgets, QtCore, QtGui
 from view import register, login, main_window, preview, fileoperation
 import controller
-
 controller_object = controller.Controller()
-
 class Register(QtWidgets.QWidget):
     def __init__(self):
         super().__init__()
@@ -16,11 +14,9 @@ class Register(QtWidgets.QWidget):
         self.ui.register_button.clicked.connect(self.register_func)
         self.keyfile_path = None
         self.setup_authenticator()
-
     def setup_authenticator(self):
         buffer = controller_object.get_authenticator_secret()
         self.ui.authenticator.setPixmap(QtGui.QPixmap.fromImage(QtGui.QImage.fromData(buffer)))
-
     def register_func(self):
         if not self.keyfile_path:
             QtWidgets.QMessageBox.critical(self, "Error", "Please select a key file path.")
@@ -35,7 +31,6 @@ class Register(QtWidgets.QWidget):
             self.login.show()
         except Exception as e:
             QtWidgets.QMessageBox.critical(self, "Error", f"Failed to save key file: {str(e)}")
-
     def keyfile_func(self):
         self.keyfile_path, _ = QtWidgets.QFileDialog.getSaveFileName(
             self, "Save Key File", "enclipt.key", "Key Files (*.key);;All Files (*)"
@@ -44,7 +39,6 @@ class Register(QtWidgets.QWidget):
             self.show_toast("Key file path selected")
         else:
             self.show_toast("No key file path selected")
-
     def show_toast(self, message):
         toast = QtWidgets.QLabel(message, self)
         toast.setStyleSheet("""
@@ -64,7 +58,6 @@ class Register(QtWidgets.QWidget):
         toast.show()
         toast.raise_()
         QtCore.QTimer.singleShot(1000, toast.hide)
-
 class Login(QtWidgets.QWidget):
     def __init__(self):
         super().__init__()
@@ -78,7 +71,6 @@ class Login(QtWidgets.QWidget):
         self.keyfile_valid = False
         self.totp_valid = False
         self.password_valid = False
-
     def handle_login2(self):
         self.totp_validation()
         self.password_validation()
@@ -93,7 +85,6 @@ class Login(QtWidgets.QWidget):
             self.main_window.show()
         else:
             self.show_toast("Login failed: Invalid credentials")
-
     def get_keyfile_path(self):
         self.keyfile_path, _ = QtWidgets.QFileDialog.getOpenFileName(
             self, "Select Key File", "", "Key Files (*.key);;All Files (*)"
@@ -104,7 +95,6 @@ class Login(QtWidgets.QWidget):
         else:
             self.show_toast("No key file selected")
             self.keyfile_valid = False
-
     def keyfile_validation(self):
         try:
             with open(self.keyfile_path, 'rb') as f:
@@ -119,13 +109,10 @@ class Login(QtWidgets.QWidget):
         except Exception as e:
             self.show_toast(f"Error reading key file: {str(e)}")
             self.keyfile_valid = False
-
     def totp_validation(self):
         self.totp_valid = controller_object.authenticate_totp(self.ui.otp.text())
-
     def password_validation(self):
         self.password_valid = controller_object.is_password_correct(self.ui.password.text())
-
     def show_toast(self, message):
         toast = QtWidgets.QLabel(message, self)
         toast.setStyleSheet("""
@@ -145,7 +132,6 @@ class Login(QtWidgets.QWidget):
         toast.show()
         toast.raise_()
         QtCore.QTimer.singleShot(1000, toast.hide)
-
 class FileOperation(QtWidgets.QWidget):
     def __init__(self, main_window):
         super().__init__()
@@ -159,7 +145,6 @@ class FileOperation(QtWidgets.QWidget):
         self.ui.confirm.clicked.connect(self.confirm_operation)
         self.operation = None
         self.file_path = None
-
     def select_backup_path(self):
         self.file_path, _ = QtWidgets.QFileDialog.getSaveFileName(
             self, "Save Backup Database", "enclipt_backup.db", "Database Files (*.db);;All Files (*)"
@@ -170,7 +155,6 @@ class FileOperation(QtWidgets.QWidget):
         else:
             self.ui.file_status.setText("No backup path selected")
             self.operation = None
-
     def select_restore_path(self):
         self.file_path, _ = QtWidgets.QFileDialog.getOpenFileName(
             self, "Select Backup Database", "", "Database Files (*.db);;All Files (*)"
@@ -181,7 +165,6 @@ class FileOperation(QtWidgets.QWidget):
         else:
             self.ui.file_status.setText("No restore path selected")
             self.operation = None
-
     def confirm_operation(self):
         password = self.ui.file_password.text()
         if not password:
@@ -200,7 +183,6 @@ class FileOperation(QtWidgets.QWidget):
                 self.main_window.cliplist = controller_object.get_clipboard_list(state=1)
                 self.main_window.update_labels()
                 self.close()
-
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
@@ -218,6 +200,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.locker_timer = QtCore.QTimer()
         self.locker_timer.setSingleShot(True)
         self.locker_timer.timeout.connect(self.lock_function)
+        self.ui.clip_timer_btn.clicked.connect(self.clip_timer)
+        self.ui.lock_timer_btn.clicked.connect(self.lock_timer)
         self.labels = [
             self.ui.paste0,
             self.ui.paste1,
@@ -245,28 +229,23 @@ class MainWindow(QtWidgets.QMainWindow):
         self.page_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         self.ui.verticalLayout.addWidget(self.page_label)
         self.update_labels()
-
     def open_file_operation(self):
         self.file_op_window = FileOperation(self)
         self.file_op_window.show()
-
     def next_page(self):
         prev_offset = controller_object.model.offset
         self.cliplist = controller_object.get_clipboard_list(state=2)
         self.update_labels()
         if len(self.cliplist) < 5 and self.cliplist and controller_object.model.offset == prev_offset:
             self.show_toast("No more clips available", self.ui.centralwidget)
-
     def prev_page(self):
         self.cliplist = controller_object.get_clipboard_list(state=3)
         self.update_labels()
-
     def preview(self, index):
         if index < len(self.cliplist):
             text = self.cliplist[index]
             self.preview_obj = Preview(text, self)
             self.preview_obj.show()
-
     def clip_changed(self):
         if not self.should_insert_clip:
             return
@@ -282,7 +261,6 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.clear_timer.start(self.cliptimeout)
         else:
             self.show_toast("Duplicate clip not added", self.ui.centralwidget)
-
     def update_labels(self):
         for i, label in enumerate(self.labels):
             label.setText(self.cliplist[i] if i < len(self.cliplist) else "󰛌 Empty Paste!")
@@ -290,7 +268,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.stack_btn_next.setEnabled(len(self.cliplist) == 5)
         page_num = (controller_object.model.offset // 5) + 1
         self.page_label.setText(f"Page {page_num}")
-
     def show_toast(self, message, widget):
         toast = QtWidgets.QLabel(message, self)
         toast.setStyleSheet("""
@@ -310,38 +287,31 @@ class MainWindow(QtWidgets.QMainWindow):
         toast.show()
         toast.raise_()
         QtCore.QTimer.singleShot(1000, toast.hide)
-
     def clip_timer(self):
         timeout = self.ui.clip_timer_input.text()
         if self.is_valid_time(timeout):
             self.cliptimeout = int(timeout) * 1000
             self.show_toast(f"Set to clear clipboard after {timeout} second(s)", self.ui.clipboard_timer_widget)
-            self.clear_timer.start(self.cliptimeout)
         else:
             self.show_toast("Enter valid time", self.ui.clipboard_timer_widget)
-
     def lock_timer(self):
         timeout = self.ui.lock_timer_input.text()
         if self.is_valid_time(timeout):
-            self.show_toast(f"Set to lock after {timeout} second(s)", self.ui.lock_timer_widget)
-            if self.locker_timer.isActive():
-                self.locker_timer.stop()
+            self.locker_timer.stop()
             self.locker_timer.start(int(timeout) * 1000)
+            self.show_toast(f"Set to lock after {timeout} second(s)", self.ui.lock_timer_widget)
         else:
             self.show_toast("Enter valid time", self.ui.lock_timer_widget)
-
     def lock_function(self):
         self.login_window = Login()
         self.login_window.show()
         self.close()
-
     def is_valid_time(self, text):
         try:
             int(text)
             return True
         except:
             return False
-
 class Preview(QtWidgets.QDialog):
     def __init__(self, text, mainwindow):
         super().__init__()
@@ -353,13 +323,11 @@ class Preview(QtWidgets.QDialog):
         self.ui.preview_box.setText(self.clip_text)
         self.ui.close.clicked.connect(self.close)
         self.ui.copy.clicked.connect(self.copy_to_clip)
-
     def copy_to_clip(self):
         self.mainwindow.should_insert_clip = False
         clipboard = QtGui.QGuiApplication.clipboard()
         clipboard.setText(self.clip_text)
         self.mainwindow.should_insert_clip = True
-
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     db_path = "model/database"
